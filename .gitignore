@@ -1,0 +1,18 @@
+# Go binaries
+/bin/
+*.exe
+*.test
+*.out
+
+# Vendor (если появится)
+vendor/
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+
+# Env / secrets
+.env
