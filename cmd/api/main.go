@@ -7,12 +7,15 @@ import (
 	"os/signal"
 	"syscall"
 	"task_scheduler/internal/httpserver"
+	"task_scheduler/internal/task"
 	"time"
 )
 
 func main() {
 	addr := ":8080"
-	srv := httpserver.New(addr)
+
+	svc := task.NewService()
+	srv := httpserver.New(addr, svc)
 
 	go func() {
 		log.Println("[MAIN] starting server on", addr)

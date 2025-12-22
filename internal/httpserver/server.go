@@ -3,6 +3,7 @@ package httpserver
 import (
 	"context"
 	"net/http"
+	"task_scheduler/internal/task"
 	"time"
 )
 
@@ -10,9 +11,9 @@ type Server struct {
 	s *http.Server
 }
 
-func New(addr string) *Server {
+func New(addr string, svc task.Service) *Server {
 	mux := http.NewServeMux()
-	registerRoutes(mux)
+	registerRoutes(mux, svc)
 
 	return &Server{
 		s: &http.Server{
