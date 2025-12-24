@@ -24,6 +24,21 @@ type createTaskRequest struct {
 	DueAt *string `json:"due_at"`
 }
 
+//---------------------------------------------------------------//
+
+type listTasksMeta struct {
+	Total  int `json:"total"`
+	Limit  int `json:"limit"`
+	Offset int `json:"offset"`
+}
+
+type listTasksResponse struct {
+	Data []task.Task   `json:"data"`
+	Meta listTasksMeta `json:"meta"`
+}
+
+//---------------------------------------------------------------//
+
 func (h *TasksHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var req createTaskRequest
 
@@ -83,4 +98,54 @@ func (h *TasksHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	WriteJSON(w, http.StatusOK, tsk)
+}
+
+func (h *TasksHandler) List(w http.ResponseWriter, r *http.Request) {
+
+	q := r.URL.Query()
+	limit := 0
+	offset := 0
+
+	if limitStr := q.Get("limit"); limitStr != "" {
+		numLimit, err := strconv.Atoi(limitStr)
+		if err != nil {
+			WriteError(
+				w,
+				http.StatusBadRequest,
+				"VALIDATION_ERROR",
+				"limit must be a number",
+			)
+			return
+		}
+		limit = numLimit
+	}
+
+	if offsetStr := q.Get("offset"); offsetStr != "" {
+		numOffset, err := strconv.Atoi(offsetStr)
+		if err != nil {
+			WriteError(
+				w,
+				http.StatusBadRequest,
+				"VALIDATION_ERROR",
+				"offset must be a number",
+			)
+			return
+		}
+		offset = numOffset
+	}
+
+	tasks, total, effLimit, err := h.svc.List(limit, offset)
+	if err != nil {
+		WriteError(w, http.StatusBadRequest, "INVALID_REQUEST", err.Error())
+		return
+	}
+
+	WriteJSON(w, http.StatusOK, listTasksResponse{
+		Data: tasks,
+		Meta: listTasksMeta{
+			Total:  total,
+			Limit:  effLimit,
+			Offset: offset,
+		},
+	})
 }

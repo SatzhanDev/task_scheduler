@@ -13,5 +13,6 @@ func registerRoutes(mux *http.ServeMux, svc task.Service) {
 
 	mux.HandleFunc("POST /v1/tasks", h.Create)
 	mux.HandleFunc("GET /v1/tasks/{id}", h.Get)
+	mux.HandleFunc("GET /v1/tasks", h.List)
 
 }

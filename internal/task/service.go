@@ -2,6 +2,7 @@ package task
 
 import (
 	"errors"
+	"sort"
 	"sync"
 	"time"
 )
@@ -14,7 +15,7 @@ var (
 type Service interface {
 	Create(title string, dueAt *time.Time) (*Task, error)
 	Get(id int) (*Task, error)
-	List(limit, offset int) ([]Task, int, error)
+	List(limit, offset int) ([]Task, int, int, error)
 }
 
 type TaskService struct {
@@ -59,11 +60,11 @@ func (s *TaskService) Get(id int) (*Task, error) {
 
 }
 
-func (s *TaskService) List(limit, offset int) ([]Task, int, error) {
+func (s *TaskService) List(limit, offset int) ([]Task, int, int, error) {
 	// 1. Валидация offset
 
 	if offset < 0 {
-		return nil, 0, ErrInvalidInput
+		return nil, 0, 0, ErrInvalidInput
 	}
 
 	// 2. Значения по умолчанию и ограничения
@@ -83,7 +84,7 @@ func (s *TaskService) List(limit, offset int) ([]Task, int, error) {
 
 	// 5. Если offset больше total — просто вернём пустой список
 	if offset >= total {
-		return []Task{}, total, nil
+		return []Task{}, total, limit, nil
 	}
 
 	// 6. Преобразуем map -> slice
@@ -92,14 +93,19 @@ func (s *TaskService) List(limit, offset int) ([]Task, int, error) {
 		all = append(all, *t)
 	}
 
-	// 7. Вычисляем границы
+	//7. Сортировка. Бывает только при in memory памяти когда используем map.
+	// При SQL database так не будет
+	sort.Slice(all, func(i, j int) bool {
+		return all[i].ID < all[j].ID
+	})
+	// 8. Вычисляем границы
 	end := offset + limit
 	if end > total {
 		end = total
 	}
 
-	// 8. Возвращаем нужный кусок
-	return all[offset:end], total, nil
+	// 9. Возвращаем нужный кусок
+	return all[offset:end], total, limit, nil
 }
 
 func NewService() Service {
