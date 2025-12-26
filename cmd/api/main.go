@@ -35,8 +35,8 @@ func main() {
 		log.Fatal("[MAIN] migrate db:", err)
 	}
 	// --- /SQLite init ---
-
-	svc := task.NewService()
+	repo := tasksqlite.New(db)
+	svc := task.NewService(repo)
 	srv := httpserver.New(addr, svc)
 
 	go func() {
