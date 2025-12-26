@@ -16,3 +16,6 @@ vendor/
 
 # Env / secrets
 .env
+
+data/
+*.db
