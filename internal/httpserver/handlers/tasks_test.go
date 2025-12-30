@@ -56,3 +56,71 @@ func TestTasksHandler_Create_OK(t *testing.T) {
 	require.False(t, got.CreatedAt.IsZero())
 	require.False(t, got.UpdatedAt.IsZero())
 }
+
+func TestTaskHandler_Create_InvalidJSON(t *testing.T) {
+	svc := newTestService(t)
+	h := NewTasksHandler(svc)
+
+	body := []byte(`"title":`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/tasks", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+
+	rr := httptest.NewRecorder()
+
+	h.Create(rr, req)
+
+	require.Equal(t, http.StatusBadRequest, rr.Code)
+
+	var er ErrorResponse
+	require.NoError(t, json.NewDecoder(rr.Body).Decode(&er))
+	require.Equal(t, "INVALID_JSON", er.Error.Code)
+}
+
+func TestTasksHandler_Create_EmptyTitle(t *testing.T) {
+	svc := newTestService(t)
+	h := NewTasksHandler(svc)
+
+	body := []byte(`{"title":""}`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/tasks", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+
+	rr := httptest.NewRecorder()
+
+	h.Create(rr, req)
+
+	require.Equal(t, http.StatusBadRequest, rr.Code)
+
+	var er ErrorResponse
+	require.NoError(t, json.NewDecoder(rr.Body).Decode(&er))
+
+	// у тебя в handler: ErrInvalidInput -> INVALID_REQUEST
+	require.Equal(t, "INVALID_REQUEST", er.Error.Code)
+}
+
+func TestTasksHandler_Create_InvalidDueAt(t *testing.T) {
+	svc := newTestService(t)
+	h := NewTasksHandler(svc)
+
+	//  неправильный формат даты
+	body := []byte(`{
+		"title": "Task with bad due_at",
+		"due_at": "2024-12-99"
+	}`)
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/tasks", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+
+	rr := httptest.NewRecorder()
+
+	h.Create(rr, req)
+
+	// 1️⃣ проверяем HTTP-статус
+	require.Equal(t, http.StatusBadRequest, rr.Code)
+
+	// 2️⃣ проверяем формат ошибки
+	var er ErrorResponse
+	require.NoError(t, json.NewDecoder(rr.Body).Decode(&er))
+
+	require.Equal(t, "VALIDATION_ERROR", er.Error.Code)
+	require.Equal(t, "due_at must be RFC3339", er.Error.Message)
+}
