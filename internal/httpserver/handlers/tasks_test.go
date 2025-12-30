@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -123,4 +124,72 @@ func TestTasksHandler_Create_InvalidDueAt(t *testing.T) {
 
 	require.Equal(t, "VALIDATION_ERROR", er.Error.Code)
 	require.Equal(t, "due_at must be RFC3339", er.Error.Message)
+}
+
+func TestTaskHandler_Get_OK(t *testing.T) {
+	svc := newTestService(t)
+	h := NewTasksHandler(svc)
+
+	createdTask, err := svc.Create("Task for get", nil)
+	require.NoError(t, err)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /v1/tasks/{id}", h.Get)
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/tasks/"+strconv.Itoa(createdTask.ID), nil)
+	rr := httptest.NewRecorder()
+
+	// h.Get(rr, req)
+	mux.ServeHTTP(rr, req)
+
+	require.Equal(t, http.StatusOK, rr.Code)
+
+	var got task.Task
+	require.NoError(t, json.NewDecoder(rr.Body).Decode(&got))
+	require.Equal(t, createdTask.ID, got.ID)
+	require.Equal(t, "Task for get", got.Title)
+	require.Equal(t, task.StatusPending, got.Status)
+
+}
+
+func TestTasksHandler_Get_InvalidID(t *testing.T) {
+	svc := newTestService(t)
+	h := NewTasksHandler(svc)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /v1/tasks/{id}", h.Get)
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/tasks/abc", nil)
+
+	rr := httptest.NewRecorder()
+
+	// h.Get(rr, req)
+	mux.ServeHTTP(rr, req)
+
+	require.Equal(t, http.StatusBadRequest, rr.Code)
+
+	var er ErrorResponse
+	require.NoError(t, json.NewDecoder(rr.Body).Decode(&er))
+
+	require.Equal(t, "INVALID_ID", er.Error.Code)
+}
+
+func TestTasksHandler_Get_NotFound(t *testing.T) {
+	svc := newTestService(t)
+	h := NewTasksHandler(svc)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /v1/tasks/{id}", h.Get)
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/tasks/99999", nil)
+	rr := httptest.NewRecorder()
+
+	// h.Get(rr, req)
+	mux.ServeHTTP(rr, req)
+
+	require.Equal(t, http.StatusNotFound, rr.Code)
+
+	var er ErrorResponse
+	require.NoError(t, json.NewDecoder(rr.Body).Decode(&er))
+	require.Equal(t, "NOT_FOUND", er.Error.Code)
 }
