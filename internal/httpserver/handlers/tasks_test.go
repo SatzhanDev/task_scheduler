@@ -193,3 +193,98 @@ func TestTasksHandler_Get_NotFound(t *testing.T) {
 	require.NoError(t, json.NewDecoder(rr.Body).Decode(&er))
 	require.Equal(t, "NOT_FOUND", er.Error.Code)
 }
+
+func TestTaskHandler_List_Empty(t *testing.T) {
+	svc := newTestService(t)
+	h := NewTasksHandler(svc)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /v1/tasks", h.List)
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/tasks", nil)
+	rr := httptest.NewRecorder()
+
+	mux.ServeHTTP(rr, req)
+
+	require.Equal(t, http.StatusOK, rr.Code)
+
+	var resp listTasksResponse
+	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
+
+	require.Len(t, resp.Data, 0)
+	require.Equal(t, 0, resp.Meta.Total)
+}
+
+func TestTasksHandler_List_Limit(t *testing.T) {
+	svc := newTestService(t)
+	h := NewTasksHandler(svc)
+
+	for i := 0; i < 12; i++ {
+		_, err := svc.Create("Task "+strconv.Itoa(i+1), nil)
+		require.NoError(t, err)
+	}
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /v1/tasks", h.List)
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/tasks?limit=5", nil)
+	rr := httptest.NewRecorder()
+
+	mux.ServeHTTP(rr, req)
+
+	require.Equal(t, http.StatusOK, rr.Code)
+
+	var resp listTasksResponse
+	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
+
+	require.Len(t, resp.Data, 5)
+	require.Equal(t, 12, resp.Meta.Total)
+	require.Equal(t, 5, resp.Meta.Limit)
+	require.Equal(t, 0, resp.Meta.Offset)
+}
+
+func TestTasksHandler_List_Offset(t *testing.T) {
+	svc := newTestService(t)
+	h := NewTasksHandler(svc)
+
+	for i := 0; i < 12; i++ {
+		_, err := svc.Create("Task "+strconv.Itoa(i+1), nil)
+		require.NoError(t, err)
+	}
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /v1/tasks", h.List)
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/tasks?limit=5&offset=5", nil)
+	rr := httptest.NewRecorder()
+
+	mux.ServeHTTP(rr, req)
+
+	require.Equal(t, http.StatusOK, rr.Code)
+
+	var resp listTasksResponse
+	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
+
+	require.Len(t, resp.Data, 5)
+	require.Equal(t, 12, resp.Meta.Total)
+	require.Equal(t, 5, resp.Meta.Limit)
+	require.Equal(t, 5, resp.Meta.Offset)
+}
+
+func TestTasksHandler_List_InvalidLimit(t *testing.T) {
+	svc := newTestService(t)
+	h := NewTasksHandler(svc)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /v1/tasks", h.List)
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/tasks?limit=abc", nil)
+	rr := httptest.NewRecorder()
+
+	mux.ServeHTTP(rr, req)
+
+	require.Equal(t, http.StatusBadRequest, rr.Code)
+
+	var er ErrorResponse
+	require.NoError(t, json.NewDecoder(rr.Body).Decode(&er))
+	require.Equal(t, "VALIDATION_ERROR", er.Error.Code)
+}
