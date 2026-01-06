@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"task_scheduler/internal/user"
+	"time"
 )
 
 type Repo struct {
@@ -22,7 +23,7 @@ func (r *Repo) Create(u *user.User) error {
 		query,
 		u.Email,
 		u.PasswordHash,
-		u.CreatedAt,
+		u.CreatedAt.Format(time.RFC3339Nano),
 	)
 	if err != nil {
 		if isUniqueViolation(err) {
@@ -52,15 +53,16 @@ func (r *Repo) GetByEmail(email string) (*user.User, error) {
 	query := `
 	SELECT id, email, password_hash, created_at
 	FROM users
-	WHERE email =?
+	WHERE email = ?
 	`
 	var u user.User
+	var createdAtStr string
 
 	err := r.db.QueryRow(query, email).Scan(
 		&u.ID,
 		&u.Email,
-		u.PasswordHash,
-		u.CreatedAt,
+		&u.PasswordHash,
+		&createdAtStr,
 	)
 
 	if err != nil {
@@ -69,5 +71,11 @@ func (r *Repo) GetByEmail(email string) (*user.User, error) {
 		}
 		return nil, err
 	}
+
+	t, err := time.Parse(time.RFC3339Nano, createdAtStr)
+	if err != nil {
+		return nil, err
+	}
+	u.CreatedAt = t
 	return &u, nil
 }

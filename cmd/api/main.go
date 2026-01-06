@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"task_scheduler/internal/httpserver"
 	"task_scheduler/internal/task"
+	"task_scheduler/internal/user"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -38,10 +39,17 @@ func main() {
 	if err := usersqlite.Migrate(db); err != nil {
 		log.Fatal("[MAIN] migrate users:", err)
 	}
-	// --- /SQLite init ---
-	repo := tasksqlite.New(db)
-	svc := task.NewService(repo)
-	srv := httpserver.New(addr, svc)
+
+	//repos
+	taskRepo := tasksqlite.New(db)
+	userRepo := usersqlite.New(db)
+
+	//services
+	taskSvc := task.NewService(taskRepo)
+	userSvc := user.NewService(userRepo)
+
+	//servers
+	srv := httpserver.New(addr, taskSvc, userSvc)
 
 	go func() {
 		log.Println("[MAIN] starting server on", addr)

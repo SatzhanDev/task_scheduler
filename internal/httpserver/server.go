@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"task_scheduler/internal/task"
+	"task_scheduler/internal/user"
 	"time"
 )
 
@@ -11,9 +12,9 @@ type Server struct {
 	s *http.Server
 }
 
-func New(addr string, svc task.Service) *Server {
+func New(addr string, taskSvc task.Service, userSvc user.Service) *Server {
 	mux := http.NewServeMux()
-	registerRoutes(mux, svc)
+	registerRoutes(mux, taskSvc, userSvc)
 
 	return &Server{
 		s: &http.Server{
