@@ -14,6 +14,7 @@ import (
 	_ "modernc.org/sqlite"
 
 	tasksqlite "task_scheduler/internal/task/sqlite"
+	usersqlite "task_scheduler/internal/user/sqlite"
 )
 
 func main() {
@@ -33,6 +34,9 @@ func main() {
 
 	if err := tasksqlite.Migrate(db); err != nil {
 		log.Fatal("[MAIN] migrate db:", err)
+	}
+	if err := usersqlite.Migrate(db); err != nil {
+		log.Fatal("[MAIN] migrate users:", err)
 	}
 	// --- /SQLite init ---
 	repo := tasksqlite.New(db)
