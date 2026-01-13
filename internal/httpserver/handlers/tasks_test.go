@@ -13,9 +13,17 @@ import (
 	"github.com/stretchr/testify/require"
 	_ "modernc.org/sqlite"
 
+	"task_scheduler/internal/auth"
 	"task_scheduler/internal/task"
 	tasksqlite "task_scheduler/internal/task/sqlite"
 )
+
+const userID = 1
+
+func withUser(req *http.Request, userID int) *http.Request {
+	ctx := auth.WithUserID(req.Context(), userID)
+	return req.WithContext(ctx)
+}
 
 func newTestService(t *testing.T) task.Service {
 	t.Helper()
@@ -41,6 +49,7 @@ func TestTasksHandler_Create_OK(t *testing.T) {
 	body := []byte(`{"title":"Task 1"}`)
 	req := httptest.NewRequest(http.MethodPost, "/v1/tasks", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+	req = withUser(req, userID) // 👈 добавили userID в context
 
 	rr := httptest.NewRecorder()
 
@@ -65,6 +74,7 @@ func TestTaskHandler_Create_InvalidJSON(t *testing.T) {
 	body := []byte(`"title":`)
 	req := httptest.NewRequest(http.MethodPost, "/v1/tasks", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+	req = withUser(req, userID) // 👈 добавили userID в context
 
 	rr := httptest.NewRecorder()
 
@@ -84,6 +94,7 @@ func TestTasksHandler_Create_EmptyTitle(t *testing.T) {
 	body := []byte(`{"title":""}`)
 	req := httptest.NewRequest(http.MethodPost, "/v1/tasks", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+	req = withUser(req, userID) // 👈 добавили userID в context
 
 	rr := httptest.NewRecorder()
 
@@ -110,6 +121,7 @@ func TestTasksHandler_Create_InvalidDueAt(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, "/v1/tasks", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+	req = withUser(req, userID) // 👈 добавили userID в context
 
 	rr := httptest.NewRecorder()
 
@@ -130,7 +142,7 @@ func TestTaskHandler_Get_OK(t *testing.T) {
 	svc := newTestService(t)
 	h := NewTasksHandler(svc)
 
-	createdTask, err := svc.Create("Task for get", nil)
+	createdTask, err := svc.Create(userID, "Task for get", nil)
 	require.NoError(t, err)
 
 	mux := http.NewServeMux()
@@ -138,6 +150,7 @@ func TestTaskHandler_Get_OK(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodGet, "/v1/tasks/"+strconv.Itoa(createdTask.ID), nil)
 	rr := httptest.NewRecorder()
+	req = withUser(req, userID) // 👈 добавили userID в context
 
 	// h.Get(rr, req)
 	mux.ServeHTTP(rr, req)
@@ -160,6 +173,7 @@ func TestTasksHandler_Get_InvalidID(t *testing.T) {
 	mux.HandleFunc("GET /v1/tasks/{id}", h.Get)
 
 	req := httptest.NewRequest(http.MethodGet, "/v1/tasks/abc", nil)
+	req = withUser(req, userID) // 👈 добавили userID в context
 
 	rr := httptest.NewRecorder()
 
@@ -182,6 +196,8 @@ func TestTasksHandler_Get_NotFound(t *testing.T) {
 	mux.HandleFunc("GET /v1/tasks/{id}", h.Get)
 
 	req := httptest.NewRequest(http.MethodGet, "/v1/tasks/99999", nil)
+	req = withUser(req, userID) // 👈 добавили userID в context
+
 	rr := httptest.NewRecorder()
 
 	// h.Get(rr, req)
@@ -202,6 +218,8 @@ func TestTaskHandler_List_Empty(t *testing.T) {
 	mux.HandleFunc("GET /v1/tasks", h.List)
 
 	req := httptest.NewRequest(http.MethodGet, "/v1/tasks", nil)
+	req = withUser(req, userID) // 👈 добавили userID в context
+
 	rr := httptest.NewRecorder()
 
 	mux.ServeHTTP(rr, req)
@@ -220,13 +238,15 @@ func TestTasksHandler_List_Limit(t *testing.T) {
 	h := NewTasksHandler(svc)
 
 	for i := 0; i < 12; i++ {
-		_, err := svc.Create("Task "+strconv.Itoa(i+1), nil)
+		_, err := svc.Create(userID, "Task "+strconv.Itoa(i+1), nil)
 		require.NoError(t, err)
 	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /v1/tasks", h.List)
 
 	req := httptest.NewRequest(http.MethodGet, "/v1/tasks?limit=5", nil)
+	req = withUser(req, userID) // 👈 добавили userID в context
+
 	rr := httptest.NewRecorder()
 
 	mux.ServeHTTP(rr, req)
@@ -247,7 +267,7 @@ func TestTasksHandler_List_Offset(t *testing.T) {
 	h := NewTasksHandler(svc)
 
 	for i := 0; i < 12; i++ {
-		_, err := svc.Create("Task "+strconv.Itoa(i+1), nil)
+		_, err := svc.Create(userID, "Task "+strconv.Itoa(i+1), nil)
 		require.NoError(t, err)
 	}
 
@@ -255,6 +275,8 @@ func TestTasksHandler_List_Offset(t *testing.T) {
 	mux.HandleFunc("GET /v1/tasks", h.List)
 
 	req := httptest.NewRequest(http.MethodGet, "/v1/tasks?limit=5&offset=5", nil)
+	req = withUser(req, userID) // 👈 добавили userID в context
+
 	rr := httptest.NewRecorder()
 
 	mux.ServeHTTP(rr, req)
@@ -278,6 +300,8 @@ func TestTasksHandler_List_InvalidLimit(t *testing.T) {
 	mux.HandleFunc("GET /v1/tasks", h.List)
 
 	req := httptest.NewRequest(http.MethodGet, "/v1/tasks?limit=abc", nil)
+	req = withUser(req, userID) // 👈 добавили userID в context
+
 	rr := httptest.NewRecorder()
 
 	mux.ServeHTTP(rr, req)

@@ -12,6 +12,7 @@ const (
 
 type Task struct {
 	ID        int
+	UserID    int
 	Title     string
 	DueAt     *time.Time
 	Status    Status

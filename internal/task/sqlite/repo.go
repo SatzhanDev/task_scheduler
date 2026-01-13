@@ -24,8 +24,9 @@ func (r *Repo) Create(t *task.Task) error {
 
 	// 2) Вставляем запись
 	res, err := r.db.Exec(
-		`INSERT INTO tasks (title, due_at, status, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?)`,
+		`INSERT INTO tasks (user_id, title, due_at, status, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?)`,
+		t.UserID,
 		t.Title,
 		dueAt,
 		string(t.Status),
@@ -45,25 +46,27 @@ func (r *Repo) Create(t *task.Task) error {
 	return nil
 }
 
-func (r *Repo) Get(id int) (*task.Task, error) {
+func (r *Repo) Get(userID, id int) (*task.Task, error) {
 	var (
-		t     task.Task
-		dueAt sql.NullString
-
+		t            task.Task
+		dueAt        sql.NullString
+		StatusStr    string
 		createdAtStr string
 		updatedAtStr string
 	)
 
 	err := r.db.QueryRow(
-		`SELECT id, title, due_at, status, created_at, updated_at
+		`SELECT id, user_id, title, due_at, status, created_at, updated_at
 		 FROM tasks
-		 WHERE id = ?`,
+		 WHERE user_id = ? AND id = ?`,
+		userID,
 		id,
 	).Scan(
 		&t.ID,
+		&t.UserID,
 		&t.Title,
 		&dueAt,
-		&t.Status,
+		&StatusStr,
 		&createdAtStr,
 		&updatedAtStr,
 	)
@@ -94,23 +97,26 @@ func (r *Repo) Get(id int) (*task.Task, error) {
 	}
 	t.CreatedAt = createdAt
 	t.UpdatedAt = updatedAt
-
+	// status в модели — Status (string alias)
+	t.Status = task.Status(StatusStr)
 	return &t, nil
 }
 
-func (r *Repo) List(limit, offset int) ([]task.Task, int, error) {
+func (r *Repo) List(userID, limit, offset int) ([]task.Task, int, error) {
 	// 1) Total
 	var total int
-	if err := r.db.QueryRow(`SELECT COUNT(*) FROM tasks`).Scan(&total); err != nil {
+	if err := r.db.QueryRow(`SELECT COUNT(*) FROM tasks WHERE user_id = ?`, userID).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 
 	// 2) Page rows
 	rows, err := r.db.Query(
-		`SELECT id, title, due_at, status, created_at, updated_at
+		`SELECT id, user_id, title, due_at, status, created_at, updated_at
 		 FROM tasks
-		 ORDER BY created_at
+		 WHERE user_id = ?
+		 ORDER BY created_at DESC
 		 LIMIT ? OFFSET ?`,
+		userID,
 		limit,
 		offset,
 	)
@@ -132,6 +138,7 @@ func (r *Repo) List(limit, offset int) ([]task.Task, int, error) {
 
 		if err := rows.Scan(
 			&t.ID,
+			&t.UserID,
 			&t.Title,
 			&dueAt,
 			&statusStr,

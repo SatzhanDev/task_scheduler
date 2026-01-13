@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"task_scheduler/internal/auth"
 	"task_scheduler/internal/user"
 )
 
@@ -18,12 +19,20 @@ type loginRequest struct {
 	Password string `json:"password"`
 }
 
-type AuthHandler struct {
-	svc user.Service
+type loginResponse struct {
+	AccessToken string `json:"access-token"`
 }
 
-func NewAuthHandler(svc user.Service) *AuthHandler {
-	return &AuthHandler{svc: svc}
+type AuthHandler struct {
+	userSvc    user.Service
+	jwtManager *auth.JWTManager
+}
+
+func NewAuthHandler(svc user.Service, jwtManager *auth.JWTManager) *AuthHandler {
+	return &AuthHandler{
+		userSvc:    svc,
+		jwtManager: jwtManager,
+	}
 }
 
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
@@ -33,7 +42,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, http.StatusBadRequest, "INVALID_JSON", "invalid json")
 		return
 	}
-	u, err := h.svc.Register(req.Email, req.Password)
+	u, err := h.userSvc.Register(req.Email, req.Password)
 	if err != nil {
 		switch {
 		case errors.Is(err, user.ErrInvalidInput):
@@ -56,7 +65,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	u, err := h.svc.Authenticate(req.Email, req.Password)
+	u, err := h.userSvc.Authenticate(req.Email, req.Password)
 	if err != nil {
 		switch {
 		case errors.Is(err, user.ErrInvalidInput):
@@ -69,5 +78,10 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	WriteJSON(w, http.StatusOK, u)
+	token, err := h.jwtManager.Generate(u.ID)
+	if err != nil {
+		WriteError(w, http.StatusInternalServerError, "TOKEN_ERROR", "failed to generate token")
+		return
+	}
+	WriteJSON(w, http.StatusOK, loginResponse{AccessToken: token})
 }

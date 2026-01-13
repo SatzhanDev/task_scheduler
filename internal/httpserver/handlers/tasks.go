@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"task_scheduler/internal/auth"
 	"task_scheduler/internal/task"
 	"time"
 )
@@ -40,6 +41,12 @@ type listTasksResponse struct {
 //---------------------------------------------------------------//
 
 func (h *TasksHandler) Create(w http.ResponseWriter, r *http.Request) {
+	userID, ok := auth.UserIDFromContext(r.Context())
+	if !ok {
+		WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "unauthorized")
+		return
+	}
+
 	var req createTaskRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -62,7 +69,7 @@ func (h *TasksHandler) Create(w http.ResponseWriter, r *http.Request) {
 		dueAt = &t
 
 	}
-	tsk, err := h.svc.Create(req.Title, dueAt)
+	tsk, err := h.svc.Create(userID, req.Title, dueAt)
 	if err != nil {
 		switch {
 		case errors.Is(err, task.ErrInvalidInput):
@@ -77,13 +84,19 @@ func (h *TasksHandler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *TasksHandler) Get(w http.ResponseWriter, r *http.Request) {
+	userID, ok := auth.UserIDFromContext(r.Context())
+	if !ok {
+		WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "unauthorized")
+		return
+	}
+
 	idStr := r.PathValue("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil || id <= 0 {
 		WriteError(w, http.StatusBadRequest, "INVALID_ID", "invalid id")
 		return
 	}
-	tsk, err := h.svc.Get(int(id))
+	tsk, err := h.svc.Get(userID, int(id))
 	if err != nil {
 		switch {
 		case errors.Is(err, task.ErrNotFound):
@@ -101,6 +114,12 @@ func (h *TasksHandler) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *TasksHandler) List(w http.ResponseWriter, r *http.Request) {
+
+	userID, ok := auth.UserIDFromContext(r.Context())
+	if !ok {
+		WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "unauthorized")
+		return
+	}
 
 	q := r.URL.Query()
 	limit := 0
@@ -134,7 +153,7 @@ func (h *TasksHandler) List(w http.ResponseWriter, r *http.Request) {
 		offset = numOffset
 	}
 
-	tasks, total, effLimit, err := h.svc.List(limit, offset)
+	tasks, total, effLimit, err := h.svc.List(userID, limit, offset)
 	if err != nil {
 		WriteError(w, http.StatusBadRequest, "INVALID_REQUEST", err.Error())
 		return

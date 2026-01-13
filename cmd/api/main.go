@@ -7,6 +7,8 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"task_scheduler/internal/auth"
+	"task_scheduler/internal/config"
 	"task_scheduler/internal/httpserver"
 	"task_scheduler/internal/task"
 	"task_scheduler/internal/user"
@@ -40,6 +42,12 @@ func main() {
 		log.Fatal("[MAIN] migrate users:", err)
 	}
 
+	//jwt токен
+	cfg := config.Load()
+	jwtManager := auth.NewJWTManager(
+		cfg.JWTSecret,
+		cfg.JWTTTL,
+	)
 	//repos
 	taskRepo := tasksqlite.New(db)
 	userRepo := usersqlite.New(db)
@@ -49,7 +57,7 @@ func main() {
 	userSvc := user.NewService(userRepo)
 
 	//servers
-	srv := httpserver.New(addr, taskSvc, userSvc)
+	srv := httpserver.New(addr, taskSvc, userSvc, jwtManager)
 
 	go func() {
 		log.Println("[MAIN] starting server on", addr)

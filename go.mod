@@ -3,6 +3,7 @@ module task_scheduler
 go 1.25.3
 
 require (
+	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/crypto v0.46.0
 	modernc.org/sqlite v1.41.0
