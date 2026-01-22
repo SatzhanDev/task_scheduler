@@ -180,3 +180,44 @@ func (r *Repo) List(userID, limit, offset int) ([]task.Task, int, error) {
 
 	return tasks, total, nil
 }
+
+func (r *Repo) Update(t *task.Task) error {
+	var dueAt sql.NullString
+	if t.DueAt != nil {
+		dueAt = sql.NullString{String: t.DueAt.UTC().Format(time.RFC3339Nano)}
+	}
+
+	res, err := r.db.Exec(`UPDATE tasks SET title = ?, due_at = ?, status = ?, updated_at = ? WHERE user_id = ? AND id = ?`, t.Title, dueAt, string(t.Status), t.UpdatedAt.UTC().Format(time.RFC3339Nano), t.UserID, t.ID)
+	if err != nil {
+		return err
+	}
+
+	aff, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if aff == 0 {
+		return task.ErrNotFound
+	}
+	return nil
+}
+
+func (r *Repo) Delete(userID, id int) error {
+	res, err := r.db.Exec(
+		`DELETE FROM tasks WHERE user_id = ? AND od = ?`,
+		userID,
+		id,
+	)
+	if err != nil {
+		return err
+	}
+
+	aff, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if aff == 0 {
+		return task.ErrNotFound
+	}
+	return nil
+}

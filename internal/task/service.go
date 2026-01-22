@@ -14,6 +14,8 @@ type Service interface {
 	Create(userID int, title string, dueAt *time.Time) (*Task, error)
 	Get(userID, id int) (*Task, error)
 	List(userID, limit, offset int) ([]Task, int, int, error)
+	Update(userId, id int, input UpdateTaskInput) (*Task, error)
+	Delete(userID, id int) error
 }
 
 type TaskService struct {
@@ -87,4 +89,61 @@ func (s *TaskService) List(userID int, limit, offset int) ([]Task, int, int, err
 	}
 	return tasks, total, limit, nil
 
+}
+
+func (s *TaskService) Update(userID int, id int, input UpdateTaskInput) (*Task, error) {
+	if userID <= 0 || id <= 0 {
+		return nil, ErrInvalidInput
+	}
+	// PATCH без полей — ошибка (на всякий, даже если handler уже проверяет)
+	if input.Title == nil && input.Status == nil && !input.DueAt.Set {
+		return nil, ErrInvalidInput
+	}
+	// 1) Берём текущую задачу (сразу проверка ownership)
+	tsk, err := s.repo.Get(userID, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// 2) Title
+	if input.Title != nil {
+		if *input.Title == "" {
+			return nil, ErrInvalidInput
+		}
+		tsk.Title = *input.Title
+	}
+
+	// 3) Status
+	if input.Status != nil {
+		switch *input.Status {
+		case string(StatusPending), string(StatusDone), string(StatusCanceled):
+			tsk.Status = Status(*input.Status)
+		default:
+			return nil, ErrInvalidInput
+		}
+	}
+
+	// 4) DueAt (3 состояния)
+	if input.DueAt.Set {
+		if input.DueAt.Value == nil {
+			tsk.DueAt = nil
+		} else {
+			tsk.DueAt = input.DueAt.Value
+		}
+	}
+	tsk.UpdatedAt = time.Now().UTC()
+
+	// 5) Сохраняем
+	if err := s.repo.Update(tsk); err != nil {
+		return nil, err
+	}
+	return tsk, nil
+
+}
+
+func (s *TaskService) Delete(userID, id int) error {
+	if userID <= 0 || id <= 0 {
+		return ErrInvalidInput
+	}
+	return s.repo.Delete(userID, id)
 }
