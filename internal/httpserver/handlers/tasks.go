@@ -77,7 +77,7 @@ func (h *TasksHandler) Create(w http.ResponseWriter, r *http.Request) {
 		dueAt = &t
 
 	}
-	tsk, err := h.svc.Create(userID, req.Title, dueAt)
+	tsk, err := h.svc.Create(r.Context(), userID, req.Title, dueAt)
 	if err != nil {
 		switch {
 		case errors.Is(err, task.ErrInvalidInput):
@@ -104,7 +104,7 @@ func (h *TasksHandler) Get(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, http.StatusBadRequest, "INVALID_ID", "invalid id")
 		return
 	}
-	tsk, err := h.svc.Get(userID, int(id))
+	tsk, err := h.svc.Get(r.Context(), userID, int(id))
 	if err != nil {
 		switch {
 		case errors.Is(err, task.ErrNotFound):
@@ -161,7 +161,7 @@ func (h *TasksHandler) List(w http.ResponseWriter, r *http.Request) {
 		offset = numOffset
 	}
 
-	tasks, total, effLimit, err := h.svc.List(userID, limit, offset)
+	tasks, total, effLimit, err := h.svc.List(r.Context(), userID, limit, offset)
 	if err != nil {
 		WriteError(w, http.StatusBadRequest, "INVALID_REQUEST", err.Error())
 		return
@@ -233,7 +233,7 @@ func (h *TasksHandler) Update(w http.ResponseWriter, r *http.Request) {
 		DueAt:  dueAt,
 	}
 
-	updated, err := h.svc.Update(userID, id, input)
+	updated, err := h.svc.Update(r.Context(), userID, id, input)
 	if err != nil {
 		switch {
 		case errors.Is(err, task.ErrNotFound):
@@ -262,7 +262,7 @@ func (h *TasksHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.svc.Delete(userID, id); err != nil {
+	if err := h.svc.Delete(r.Context(), userID, id); err != nil {
 		switch {
 		case errors.Is(err, task.ErrNotFound):
 			WriteError(w, http.StatusNotFound, "NOT_FOUND", err.Error())

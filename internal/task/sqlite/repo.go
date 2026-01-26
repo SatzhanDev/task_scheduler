@@ -1,6 +1,7 @@
 package sqlite
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"task_scheduler/internal/task"
@@ -15,7 +16,7 @@ func New(db *sql.DB) *Repo {
 	return &Repo{db: db}
 }
 
-func (r *Repo) Create(t *task.Task) error {
+func (r *Repo) Create(ctx context.Context, t *task.Task) error {
 	// 1) Готовим значения для due_at: либо NULL, либо строка
 	var dueAt sql.NullString
 	if t.DueAt != nil {
@@ -23,7 +24,7 @@ func (r *Repo) Create(t *task.Task) error {
 	}
 
 	// 2) Вставляем запись
-	res, err := r.db.Exec(
+	res, err := r.db.ExecContext(ctx,
 		`INSERT INTO tasks (user_id, title, due_at, status, created_at, updated_at)
 		 VALUES (?, ?, ?, ?, ?, ?)`,
 		t.UserID,
@@ -46,7 +47,7 @@ func (r *Repo) Create(t *task.Task) error {
 	return nil
 }
 
-func (r *Repo) Get(userID, id int) (*task.Task, error) {
+func (r *Repo) Get(ctx context.Context, userID, id int) (*task.Task, error) {
 	var (
 		t            task.Task
 		dueAt        sql.NullString
@@ -55,7 +56,7 @@ func (r *Repo) Get(userID, id int) (*task.Task, error) {
 		updatedAtStr string
 	)
 
-	err := r.db.QueryRow(
+	err := r.db.QueryRowContext(ctx,
 		`SELECT id, user_id, title, due_at, status, created_at, updated_at
 		 FROM tasks
 		 WHERE user_id = ? AND id = ?`,
@@ -102,15 +103,15 @@ func (r *Repo) Get(userID, id int) (*task.Task, error) {
 	return &t, nil
 }
 
-func (r *Repo) List(userID, limit, offset int) ([]task.Task, int, error) {
+func (r *Repo) List(ctx context.Context, userID, limit, offset int) ([]task.Task, int, error) {
 	// 1) Total
 	var total int
-	if err := r.db.QueryRow(`SELECT COUNT(*) FROM tasks WHERE user_id = ?`, userID).Scan(&total); err != nil {
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM tasks WHERE user_id = ?`, userID).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 
 	// 2) Page rows
-	rows, err := r.db.Query(
+	rows, err := r.db.QueryContext(ctx,
 		`SELECT id, user_id, title, due_at, status, created_at, updated_at
 		 FROM tasks
 		 WHERE user_id = ?
@@ -181,13 +182,13 @@ func (r *Repo) List(userID, limit, offset int) ([]task.Task, int, error) {
 	return tasks, total, nil
 }
 
-func (r *Repo) Update(t *task.Task) error {
+func (r *Repo) Update(ctx context.Context, t *task.Task) error {
 	var dueAt sql.NullString
 	if t.DueAt != nil {
 		dueAt = sql.NullString{String: t.DueAt.UTC().Format(time.RFC3339Nano)}
 	}
 
-	res, err := r.db.Exec(`UPDATE tasks SET title = ?, due_at = ?, status = ?, updated_at = ? WHERE user_id = ? AND id = ?`, t.Title, dueAt, string(t.Status), t.UpdatedAt.UTC().Format(time.RFC3339Nano), t.UserID, t.ID)
+	res, err := r.db.ExecContext(ctx, `UPDATE tasks SET title = ?, due_at = ?, status = ?, updated_at = ? WHERE user_id = ? AND id = ?`, t.Title, dueAt, string(t.Status), t.UpdatedAt.UTC().Format(time.RFC3339Nano), t.UserID, t.ID)
 	if err != nil {
 		return err
 	}
@@ -202,8 +203,8 @@ func (r *Repo) Update(t *task.Task) error {
 	return nil
 }
 
-func (r *Repo) Delete(userID, id int) error {
-	res, err := r.db.Exec(
+func (r *Repo) Delete(ctx context.Context, userID, id int) error {
+	res, err := r.db.ExecContext(ctx,
 		`DELETE FROM tasks WHERE user_id = ? AND od = ?`,
 		userID,
 		id,

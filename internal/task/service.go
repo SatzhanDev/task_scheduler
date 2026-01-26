@@ -1,6 +1,7 @@
 package task
 
 import (
+	"context"
 	"errors"
 	"time"
 )
@@ -11,11 +12,11 @@ var (
 )
 
 type Service interface {
-	Create(userID int, title string, dueAt *time.Time) (*Task, error)
-	Get(userID, id int) (*Task, error)
-	List(userID, limit, offset int) ([]Task, int, int, error)
-	Update(userId, id int, input UpdateTaskInput) (*Task, error)
-	Delete(userID, id int) error
+	Create(ctx context.Context, userID int, title string, dueAt *time.Time) (*Task, error)
+	Get(ctx context.Context, userID, id int) (*Task, error)
+	List(ctx context.Context, userID, limit, offset int) ([]Task, int, int, error)
+	Update(ctx context.Context, userId, id int, input UpdateTaskInput) (*Task, error)
+	Delete(ctx context.Context, userID, id int) error
 }
 
 type TaskService struct {
@@ -28,7 +29,7 @@ func NewService(repo Repo) Service {
 	}
 }
 
-func (s *TaskService) Create(userID int, title string, dueAt *time.Time) (*Task, error) {
+func (s *TaskService) Create(ctx context.Context, userID int, title string, dueAt *time.Time) (*Task, error) {
 	if title == "" {
 		return nil, ErrInvalidInput
 	}
@@ -44,20 +45,20 @@ func (s *TaskService) Create(userID int, title string, dueAt *time.Time) (*Task,
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
-	if err := s.repo.Create(task); err != nil {
+	if err := s.repo.Create(ctx, task); err != nil {
 		return nil, err
 	}
 	return task, nil
 }
 
-func (s *TaskService) Get(userID int, id int) (*Task, error) {
+func (s *TaskService) Get(ctx context.Context, userID int, id int) (*Task, error) {
 	if id <= 0 {
 		return nil, ErrInvalidInput
 	}
 	if userID <= 0 {
 		return nil, ErrInvalidInput
 	}
-	task, err := s.repo.Get(userID, id)
+	task, err := s.repo.Get(ctx, userID, id)
 	if err != nil {
 		return nil, err
 	}
@@ -65,7 +66,7 @@ func (s *TaskService) Get(userID int, id int) (*Task, error) {
 
 }
 
-func (s *TaskService) List(userID int, limit, offset int) ([]Task, int, int, error) {
+func (s *TaskService) List(ctx context.Context, userID int, limit, offset int) ([]Task, int, int, error) {
 	// 1. Валидация offset
 	if userID <= 0 {
 		return nil, 0, 0, ErrInvalidInput
@@ -83,7 +84,7 @@ func (s *TaskService) List(userID int, limit, offset int) ([]Task, int, int, err
 		limit = 100
 	}
 
-	tasks, total, err := s.repo.List(userID, limit, offset)
+	tasks, total, err := s.repo.List(ctx, userID, limit, offset)
 	if err != nil {
 		return nil, 0, 0, err
 	}
@@ -91,7 +92,7 @@ func (s *TaskService) List(userID int, limit, offset int) ([]Task, int, int, err
 
 }
 
-func (s *TaskService) Update(userID int, id int, input UpdateTaskInput) (*Task, error) {
+func (s *TaskService) Update(ctx context.Context, userID int, id int, input UpdateTaskInput) (*Task, error) {
 	if userID <= 0 || id <= 0 {
 		return nil, ErrInvalidInput
 	}
@@ -100,7 +101,7 @@ func (s *TaskService) Update(userID int, id int, input UpdateTaskInput) (*Task, 
 		return nil, ErrInvalidInput
 	}
 	// 1) Берём текущую задачу (сразу проверка ownership)
-	tsk, err := s.repo.Get(userID, id)
+	tsk, err := s.repo.Get(ctx, userID, id)
 	if err != nil {
 		return nil, err
 	}
@@ -134,16 +135,16 @@ func (s *TaskService) Update(userID int, id int, input UpdateTaskInput) (*Task, 
 	tsk.UpdatedAt = time.Now().UTC()
 
 	// 5) Сохраняем
-	if err := s.repo.Update(tsk); err != nil {
+	if err := s.repo.Update(ctx, tsk); err != nil {
 		return nil, err
 	}
 	return tsk, nil
 
 }
 
-func (s *TaskService) Delete(userID, id int) error {
+func (s *TaskService) Delete(ctx context.Context, userID, id int) error {
 	if userID <= 0 || id <= 0 {
 		return ErrInvalidInput
 	}
-	return s.repo.Delete(userID, id)
+	return s.repo.Delete(ctx, userID, id)
 }

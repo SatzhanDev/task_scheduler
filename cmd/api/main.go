@@ -29,7 +29,7 @@ func main() {
 	if err != nil {
 		log.Fatal("[MAIN] open db:", err)
 	}
-	defer db.Close()
+	// defer db.Close()
 
 	if err := db.Ping(); err != nil {
 		log.Fatal("[MAIN] ping db:", err)
@@ -68,17 +68,20 @@ func main() {
 		}
 	}()
 
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
-	<-stop
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
+	<-ctx.Done()
 	log.Println("[MAIN] shutdown signal received")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	if err := srv.Shutdown(ctx); err != nil {
+	if err := srv.Shutdown(shutdownCtx); err != nil {
 		log.Println("[MAIN] shutdown error:", err)
+	}
+	if err := db.Close(); err != nil {
+		log.Println("[MAIN] db close error:", err)
 	}
 	log.Println("[MAIN] exited")
 }

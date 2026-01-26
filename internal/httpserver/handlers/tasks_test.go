@@ -142,7 +142,7 @@ func TestTaskHandler_Get_OK(t *testing.T) {
 	svc := newTestService(t)
 	h := NewTasksHandler(svc)
 
-	createdTask, err := svc.Create(userID, "Task for get", nil)
+	createdTask, err := svc.Create(t.Context(), userID, "Task for get", nil)
 	require.NoError(t, err)
 
 	mux := http.NewServeMux()
@@ -238,7 +238,7 @@ func TestTasksHandler_List_Limit(t *testing.T) {
 	h := NewTasksHandler(svc)
 
 	for i := 0; i < 12; i++ {
-		_, err := svc.Create(userID, "Task "+strconv.Itoa(i+1), nil)
+		_, err := svc.Create(t.Context(), userID, "Task "+strconv.Itoa(i+1), nil)
 		require.NoError(t, err)
 	}
 	mux := http.NewServeMux()
@@ -267,7 +267,7 @@ func TestTasksHandler_List_Offset(t *testing.T) {
 	h := NewTasksHandler(svc)
 
 	for i := 0; i < 12; i++ {
-		_, err := svc.Create(userID, "Task "+strconv.Itoa(i+1), nil)
+		_, err := svc.Create(t.Context(), userID, "Task "+strconv.Itoa(i+1), nil)
 		require.NoError(t, err)
 	}
 
