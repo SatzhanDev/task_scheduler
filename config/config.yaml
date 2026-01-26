@@ -1,0 +1,8 @@
+http:
+  addr: ":8080"
+
+db:
+  path: "data/tasks.db"
+
+jwt:
+  ttl: "24h"

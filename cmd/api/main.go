@@ -21,32 +21,37 @@ import (
 )
 
 func main() {
-	addr := ":8080"
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatal("[MAIN] load config:", err)
+	}
+	addr := cfg.HTTP.Addr
 	// --- SQLite init ---
 	_ = os.MkdirAll("data", 0o755)
 
-	db, err := sql.Open("sqlite", "data/tasks.db")
+	db, err := sql.Open("sqlite", cfg.DB.Path)
 	if err != nil {
 		log.Fatal("[MAIN] open db:", err)
 	}
-	// defer db.Close()
 
 	if err := db.Ping(); err != nil {
+		_ = db.Close()
 		log.Fatal("[MAIN] ping db:", err)
 	}
 
 	if err := tasksqlite.Migrate(db); err != nil {
+		_ = db.Close()
 		log.Fatal("[MAIN] migrate db:", err)
 	}
 	if err := usersqlite.Migrate(db); err != nil {
+		_ = db.Close()
 		log.Fatal("[MAIN] migrate users:", err)
 	}
 
 	//jwt токен
-	cfg := config.Load()
 	jwtManager := auth.NewJWTManager(
-		cfg.JWTSecret,
-		cfg.JWTTTL,
+		cfg.JWT.Secret,
+		cfg.JWT.TTL,
 	)
 	//repos
 	taskRepo := tasksqlite.New(db)
