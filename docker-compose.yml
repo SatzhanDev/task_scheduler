@@ -1,0 +1,13 @@
+
+services:
+  api:
+    build: .
+    container_name: task_scheduler_api
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    volumes:
+      - ./config/config.yaml:/app/config/config.yaml
+      - ./data:/app/data
+    restart: unless-stopped

@@ -1,0 +1,21 @@
+# HTTP server configuration
+http:
+  # Address where HTTP server listens
+  # Examples:
+  #   ":8080"
+  #   "0.0.0.0:8080"
+  addr: ":8080"
+
+# Database configuration
+db:
+  # Path to SQLite database file
+  # Example:
+  #   "data/tasks.db"
+  path: "data/tasks.db"
+
+# JWT configuration
+jwt:
+  # Token time-to-live
+  # Uses Go time.Duration format:
+  #   "15m", "1h", "24h"
+  ttl: "24h"

@@ -19,3 +19,6 @@ vendor/
 
 data/
 *.db
+
+# Runtime config (do not commit)
+config/config.yaml
